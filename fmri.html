@@ -1,0 +1,568 @@
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>fMRI browsing</title>
+        
+        <script type="text/javascript" src="../larsen/d3/d3.v3/d3.v3.js">        
+        </script>
+        <style type="text/css">
+            html, body {
+            height: 100%;
+        }
+
+        html {
+            display: table;
+             margin: auto;
+        }
+
+        body {
+            display: table-cell;
+            vertical-align: middle;
+        }
+        @font-face {
+            font-family: "Computer Modern";
+            src: url('http://mirrors.ctan.org/fonts/cm-unicode/fonts/otf/cmunss.otf');
+        }
+        </style>
+       
+    </head>
+        <body>
+            <!-- make buttons used for browsing data -->
+            <p><center><button id="pos">Pos effect</button><button id="neg">Neg effect</button></center></p>
+            <p><center><button id="decT">Dec threshold</button><button id="incT">Inc threshold</button></center></p>
+            
+            <p><center><button id="decZ">Dec Z</button><button id="incZ">Inc Z</button><button id="decY">Dec Y</button><button id="incY">Inc Y</button><button id="decX">Dec X</button><button id="incX">Inc X</button></center></p>
+            
+            <script type="text/javascript">
+            // setup parameters for the svg
+            var w = 790;
+			var h = 300;
+			var cwi=5;
+			var che=5;
+			// setup the x-displacement needed to have all three images next to each other in one svg
+            var xOffset=275*2;
+            var yOffset=300;			
+            // default starting parameters
+            var t = "3";
+			var X="20";
+			var Y="20";    
+			var Z="20";
+			var tempX="";
+			var tempY="";
+			var tempZ="";
+			var dataset;                                 			
+			var lbl;
+			var pSign=1;
+			var nSign=0;
+			
+            			
+			d3.csv("structRed.txt", function(error, data) { // structRed.txt is the downsampled structural image
+
+                if (error) {  
+      			   console.log(error);  //Log if error.
+      			} else {      
+                        strct = data;
+                        d3.csv("gambF.txt", function(error, data) { // gambF.txt is downsampled spmT file saved as txt
+
+                        if (error) { 
+              			   console.log(error);  //Log if error.
+              			} else {     
+                            fnct = data;
+                     dataset=fnct;
+                     
+                     // the full datasets are kept stored in strct and fnct, the data to be plotted are x, y, and z planes from each set
+                     var sdatax=strct.filter(function(d) {
+                       return d.row==X });
+                       
+                     var sdatay=strct.filter(function(d) {
+                       return d.col==Y });
+                                             
+                     var sdataz=strct.filter(function(d) {
+                       return d.dep==Z });
+
+                     var fdatax=fnct.filter(function(d) {
+                       return d.row==X });
+                       
+                     var fdatay=fnct.filter(function(d) {
+                       return d.col==Y });
+                                              
+                     var fdataz=fnct.filter(function(d) {
+                       return d.dep==Z });
+                     
+                     // find the maximum t-value for color scaling
+                     var maxVal= d3.max(dataset,function(d) {return 1*d.value;});
+                     var minVal= d3.min(dataset,function(d) {return 1*d.value;});
+                     
+                     // set colours according to scale
+                     var colorScale = d3.scale.linear()
+                     .domain([minVal, minVal/2, 0, maxVal/2, maxVal])
+                     .range(['blue', 'purple', 'red', 'orange', 'yellow']);
+                                          
+                      var bwColorScale = d3.scale.linear()
+                     .domain([0, 0.7])
+                     .range(['black', 'white']);                
+                      
+                      // create the main svg for displaying
+			         var svg = d3.select("body")
+		            .append("svg")
+		            .attr("width", w)
+		            .attr("height", h)
+		            .attr("allign", "center");
+		            
+		            // make graphical elements for each plot
+                    var structx = svg.append("g")
+                        .attr("class", "structs");
+
+                    var functx = svg.append("g")
+                        .attr("class", "functs"); 
+
+                    var structy = svg.append("g")
+                        .attr("class", "structs");
+
+                    var functy = svg.append("g")
+                        .attr("class", "functs"); 
+
+                    var structz = svg.append("g")
+                        .attr("class", "structs");
+
+                    var functz = svg.append("g")
+                        .attr("class", "functs");                        
+                    
+                    // make rectangle elements for the structural images that will be plotted, make them 'clickable' for browsing
+                    structx.selectAll("rect")
+                    .data(sdatax)
+                    .enter()
+                    .append("rect")
+                    .attr("x", function(d) {
+			             return cwi*d.col+xOffset;
+                    })
+                    .attr("y", function(d) {
+			             return h-che*d.dep;
+                    })
+                    .attr("width", cwi)
+				    .attr("height", che)
+                    .attr("fill", function(d) {
+				        return bwColorScale(d.value);
+				    })
+	                .on("click", function(d) {
+                        Y = (d3.select(this).attr("x")-xOffset)/5;
+                        Z = (h-d3.select(this).attr("y"))/5;
+                        changeZ(Z);
+                        changeY(Y);
+                    })	
+				    
+                    structy.selectAll("rect")
+                    .data(sdatay)
+                    .enter()
+                    .append("rect")
+                    .attr("x", function(d) {
+			             return cwi*d.row+yOffset;
+                    })
+                    .attr("y", function(d) {
+			             return h-che*d.dep;
+                    })
+                    .attr("width", cwi)
+				    .attr("height", che)
+                    .attr("fill", function(d) {
+				        return bwColorScale(d.value);
+				    })
+                    .on("click", function(d) {
+                        X = (d3.select(this).attr("x")-yOffset)/5;
+                        Z = (h-d3.select(this).attr("y"))/5;
+                        changeX(X);
+                        changeZ(Z);
+                    });				    
+
+                    structz.selectAll("rect")
+                    .data(sdataz)
+                    .enter()
+                    .append("rect")
+                    .attr("x", function(d) {
+			             return cwi*d.col;
+                    })
+                    .attr("y", function(d) {
+			             return h-che*d.row;
+                    })
+                    .attr("width", cwi)
+				    .attr("height", che)
+                    .attr("fill", function(d) {
+				        return bwColorScale(d.value);
+				    })
+                    .on("click", function(d) {
+                        Y = d3.select(this).attr("x")/5;
+                        X = (h-d3.select(this).attr("y"))/5;
+                        changeX(X);
+                        changeY(Y);
+                    })				    
+
+                    // make rectangle elements for the functional images that will be displayed, make them 'clickable' for browsing, and add title to display t-value as tooltip
+                    functx.selectAll("rect")
+                    .data(fdatax)
+                    .enter()
+                    .append("rect")
+                    .attr("x", function(d) {
+			             return cwi*d.col+xOffset;
+                    })
+                    .attr("y", function(d) {
+			             return h-che*d.dep;
+                    })
+                    .attr("width", cwi)
+				    .attr("height", che)
+                    .attr("fill", function(d) {
+				        return colorScale(d.value);
+				    })
+                    .on("click", function(d) {
+                        Y = (d3.select(this).attr("x")-xOffset)/5;
+                        Z = (h-d3.select(this).attr("y"))/5;
+                        changeZ(Z);
+                        changeY(Y);
+                    })				    
+				    .append("title")
+                    .text(function(d) {
+                        return d.value;
+                    });	
+                     
+                    // set visibility to 'none' of t-value is below/above threshold
+                    functx.selectAll("rect")
+                    .data(fdatax)
+                    .filter(function(d) {
+                        if (pSign==1 && nSign==1){
+                            return (d3.round(d.value,2)< t && d3.round(d.value,2)>-t)}
+                        else if (pSign==1){
+                            return d3.round(d.value,2)<t }
+                        else if (nSign==1){
+                            return d3.round(d.value,2)>-t }
+                        else if (pSign==0 && nSign==0){
+                            return (d3.round(d.value,2) < (2.0*maxVal)) }                            
+                        })
+                    .attr("display", "none"); 
+
+                    functy.selectAll("rect")
+                    .data(fdatay)
+                    .enter()
+                    .append("rect")
+                    .attr("x", function(d) {
+			             return cwi*d.row+yOffset;
+                    })
+                    .attr("y", function(d) {
+			             return h-che*d.dep;
+                    })
+                    .attr("width", cwi)
+				    .attr("height", che)
+                    .attr("fill", function(d) {
+				        return colorScale(d.value);
+				    })
+                    .on("click", function(d) {
+                        X = (d3.select(this).attr("x")-yOffset)/5;
+                        Z = (h-d3.select(this).attr("y"))/5;
+                        changeX(X);
+                        changeZ(Z);
+                    })				    
+				    .append("title")
+                    .text(function(d) {
+                        return d.value;
+                    });	
+                     
+                    functy.selectAll("rect")
+                    .data(fdatay)
+                    .filter(function(d) {
+                        if (pSign==1 && nSign==1){
+                            return (d3.round(d.value,2)< t && d3.round(d.value,2)>-t)}
+                        else if (pSign==1){
+                            return d3.round(d.value,2)<t }
+                        else if (nSign==1){
+                            return d3.round(d.value,2)>-t }
+                        else if (pSign==0 && nSign==0){
+                            return (d3.round(d.value,2) < (2.0*maxVal)) }                            
+                        })
+                    .attr("display", "none"); 
+                    
+                    functz.selectAll("rect")
+                    .data(fdataz)
+                    .enter()
+                    .append("rect")
+                    .attr("x", function(d) {
+			             return cwi*d.col;
+                    })
+                    .attr("y", function(d) {
+			             return h-che*d.row;
+                    })
+                    .attr("width", cwi)
+				    .attr("height", che)
+                    .attr("fill", function(d) {
+				        return colorScale(d.value);
+				    })
+                    .on("click", function(d) {
+                        Y = d3.select(this).attr("x")/5;
+                        X = (h-d3.select(this).attr("y"))/5;
+                        changeX(X);
+                        changeY(Y);
+                    })				    
+				    .append("title")
+                    .text(function(d) {
+                        return d.value;
+                    });	
+                     
+                    functz.selectAll("rect")
+                    .data(fdataz)
+                    .filter(function(d) {
+                        if (pSign==1 && nSign==1){
+                            return (d3.round(d.value,2)< t && d3.round(d.value,2)>-t)}
+                        else if (pSign==1){
+                            return d3.round(d.value,2)<t }
+                        else if (nSign==1){
+                            return d3.round(d.value,2)>-t }
+                        else if (pSign==0 && nSign==0){
+                            return (d3.round(d.value,2) < (2.0*maxVal)) }                            
+                        })
+                    .attr("display", "none");                        
+                                    		  
+                    // make labels for relevant information
+                    lbl1 = svg.append("text")
+                        .attr("x", w / 2)
+                        .attr("y", h-275 )
+                        .style("text-anchor", "middle")
+                        .text("Threshold T: \u00A0" + d3.round(t,2) )
+                        .attr("font-family", "Avantgarde, sans-serif")
+                        .attr("font-size", "18px")
+                        .attr("fill", "black")
+                        .attr("font-weight","bold");
+                        
+                    lbl2 = svg.append("text")
+                        .attr("x", w / 2-250)
+                        .attr("y", h - 250)
+                        .style("text-anchor", "middle")
+                        .text("z-coordinate: \u00A0" + 4*(Z-14))
+                        .attr("font-family", "Avantgarde, sans-serif")
+                        .attr("font-size", "18px")
+                        .attr("fill", "black")
+                        .attr("font-weight","bold");
+
+                    lbl3 = svg.append("text")
+                        .attr("x", w / 2 +250)
+                        .attr("y", h - 250 )
+                        .style("text-anchor", "middle")
+                        .text("x-coordinate: \u00A0" + 4*(20-X))
+                        .attr("font-family", "Avantgarde, sans-serif")
+                        .attr("font-size", "18px")
+                        .attr("fill", "black")
+                        .attr("font-weight","bold");
+
+                    lbl4 = svg.append("text")
+                        .attr("x", w / 2)
+                        .attr("y", h - 250 )
+                        .style("text-anchor", "middle")
+                        .text("y-coordinate: \u00A0" + 4*(Y-28))
+                        .attr("font-family", "Avantgarde, sans-serif")
+                        .attr("font-size", "18px")
+                        .attr("fill", "black")
+                        .attr("font-weight","bold");                                                
+
+                    //Set dataset based on button - consider changing to a switch statement
+                    d3.selectAll("button")
+                        .on("click", function() {
+                        var changeParm = this.getAttribute("id");
+                        
+                        if (changeParm == "incT") {
+                            t=1*t + 0.05;
+                            t=t +"";
+                            changeX(X);                            
+                            changeY(Y);                            
+                            changeZ(Z);
+    				        lbl1.text("Threshold T: \u00A0" + d3.round(t,2) ); 
+                        }
+                        else if (changeParm == "decT") {
+                            t=1*t - 0.05;
+                            t=t +"";
+                            changeX(X);                            
+                            changeY(Y);                            
+                            changeZ(Z);				        
+    				        lbl1.text("Threshold T: \u00A0" + d3.round(t,2) );
+                        }   
+                        else if (changeParm == "incZ") {
+                            Z=1*Z+1;
+                            Z=Z + "";
+                            changeZ(Z);
+                        }
+                        else if (changeParm == "decZ") {
+                            Z=1*Z-1;
+                            Z=Z + "";
+                            changeZ(Z);
+                        }
+                        else if (changeParm == "incY") {
+                            Y=1*Y+1;
+                            Y=Y + "";
+                            changeY(Y);
+                        }
+                        else if (changeParm == "decY") {
+                            Y=1*Y-1;
+                            Y=Y + "";
+                            changeY(Y);
+                        }                        
+                        else if (changeParm == "incX") {
+                            X=1*X-1;
+                            X=X + "";
+                            changeX(X);
+                        }
+                        else if (changeParm == "decX") {
+                            X=1*X+1;
+                            X=X + "";
+                           changeX(X);
+                        } 
+                        else if (changeParm == "pos") {
+                            pSign=1-pSign;
+                           changeX(X);
+                           changeY(Y);
+                           changeZ(Z);
+                        } 
+                        else if (changeParm == "neg") {
+                            nSign=1-nSign;
+                           changeX(X);
+                           changeY(Y);
+                           changeZ(Z);
+                        }                                                                
+                        });
+
+                        // functions for changing the data displayed, update subset, updata value and 'title', recalculate visibility
+                        function changeX(newX) {
+                            newX=newX + "";
+                            
+                            sdatax=strct.filter(function(d) {
+                                return d.row==newX 
+                            });
+
+                            structx.selectAll("rect")
+                                .data(sdatax)
+                                .transition()
+                                .duration(200)
+                                .attr("fill", function(d) {
+				                    return bwColorScale(d.value);
+				                });
+				                
+                             fdatax=fnct.filter(function(d) {
+                                return d.row==newX });
+                                
+                            functx.selectAll("rect")
+                                .data(fdatax)
+                                .attr("fill", function(d) {  
+    	   	          		        return colorScale(d.value);
+    				            })
+    				            .attr("display","null")
+            				    .select("title").text(function(d) {
+            				        return d.value;
+                                });		           
+
+                            functx.selectAll("rect")
+                                .data(fdatax)
+                                .filter(function(d) {
+                                    if (pSign==1 && nSign==1){
+                                        return (d3.round(d.value,2)< t && d3.round(d.value,2)>-t)}
+                                    else if (pSign==1){
+                                        return d3.round(d.value,2)<t }
+                                    else if (nSign==1){
+                                        return d3.round(d.value,2)>-t }
+                                    else if (pSign==0 && nSign==0){
+                                        return (d3.round(d.value,2) < (2.0*maxVal)) }
+                                    })
+                                .attr("display", "none");  
+                                
+                            lbl3.text("x-coordinate: \u00A0" + 4*(20-X));                                
+                        }   
+                            
+                        function changeY(newY) {
+                            newY=newY + "";
+                            
+                            sdatay=strct.filter(function(d) {
+                                return d.col==newY });
+
+                            structy.selectAll("rect")
+                                .data(sdatay)
+                                .transition()
+                                .duration(200)                                
+                                .attr("fill", function(d) {
+				                    return bwColorScale(d.value);
+				                })
+				                
+				                
+                             fdatay=fnct.filter(function(d) {
+                                return d.col==newY });
+                                                              
+                            functy.selectAll("rect")
+                                .data(fdatay)
+                                .attr("fill", function(d) {
+    	   	          		        return colorScale(d.value);
+    				            })
+    				            .attr("display","null")
+            				    .select("title").text(function(d) {
+            				        return d.value;
+                                });		           
+
+                            functy.selectAll("rect")
+                                .data(fdatay)
+                                .filter(function(d) {
+                                    if (pSign==1 && nSign==1){
+                                        return (d3.round(d.value,2)< t && d3.round(d.value,2)>-t)}
+                                    else if (pSign==1){
+                                        return d3.round(d.value,2)<t }
+                                    else if (nSign==1){
+                                        return d3.round(d.value,2)>-t }
+                                    else if (pSign==0 && nSign==0){
+                                        return (d3.round(d.value,2) < (2.0*maxVal)) }                                        
+                                    })
+                                .attr("display", "none");  
+                                
+                            lbl4.text("y-coordinate: \u00A0" + 4*(Y-28));                                
+                        }                               
+                               
+                        function changeZ(newZ) {
+                            newZ=newZ + "";
+                            
+                            sdataz=strct.filter(function(d) {
+                                return d.dep==newZ });
+
+                            structz.selectAll("rect")
+                                .data(sdataz)
+                                .transition()
+                                .duration(200)                                
+                                .attr("fill", function(d) {
+				                    return bwColorScale(d.value);
+				                })
+				                
+				                
+                             fdataz=fnct.filter(function(d) {
+                                return d.dep==newZ });
+
+                            functz.selectAll("rect")
+                                .data(fdataz)
+                                .attr("fill", function(d) {
+    	   	          		        return colorScale(d.value);
+    				            })
+    				            .attr("display","none")
+            				    .select("title").text(function(d) {
+            				        return d.value;
+                                });		           
+
+                            functz.selectAll("rect")
+                                .data(fdataz)
+                                .filter(function(d) {
+                                    if (pSign==1 && nSign==1){
+                                        return (d3.round(d.value,2)> t && d3.round(d.value,2)<-t)}
+                                    else if (pSign==1){
+                                        return d3.round(d.value,2)>t }
+                                    else if (nSign==1){
+                                        return d3.round(d.value,2)<-t }
+                                    else if (pSign==0 && nSign==0){
+                                        return (d3.round(d.value,2) > (2.0*maxVal)) }                                        
+                                    })                                    
+                                .attr("display", "null");
+
+                            lbl2.text("z-coordinate: \u00A0" + 4*(Z-14));                                  
+                        }                                      
+                    }
+                });
+            }
+            });
+
+            </script>
+        </body>
+</html>
