@@ -1,8 +1,4 @@
 function [done]= spm2txt(inputFile, outputFile)
-% Function to downsample 3D spmT file and turn it into coordinate list for
-% D3 use
-% inputFile: string identifying the spmT file
-% outputFile: string with desired filename, should end in .txt
 
 hdF=spm_vol(inputFile);
 imF=spm_read_vols(hdF);
